@@ -1,4 +1,4 @@
-ARG TAG=@sha256:145bacc9db29ff9c9c021284e5b7b22f1193fc38556c578250c926cf3c883a13
+ARG TAG=@sha256:77906da86b60585ce12215807090eb327e7386c8fafb5402369e421f44eff17e
 FROM ubuntu${TAG} as builder
 COPY requirements.txt /tmp
 RUN apt update && apt install python3-pip python3-setuptools python3-dev gcc -y && \
@@ -7,7 +7,7 @@ RUN apt update && apt install python3-pip python3-setuptools python3-dev gcc -y 
 FROM ubuntu${TAG}
 LABEL maintainer="support@opennix.ru"
 LABEL description="Ubuntu 24.04 Wazuh Docker Agent"
-ARG AGENT_VERSION="4.3.10-1"
+ARG AGENT_VERSION="4.7.3-1"
 ENV JOIN_MANAGER_MASTER_HOST=""
 ENV JOIN_MANAGER_WORKER_HOST=""
 ENV VIRUS_TOTAL_KEY=""
@@ -20,7 +20,7 @@ ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PIP_ROOT_USER_ACTION=ignore
 ENV TZ=Etc/UTC
-COPY *.py *.jinja2  /var/ossec/
+COPY *.py /var/ossec/
 WORKDIR /var/ossec/
 COPY --from=builder /tmp/wheel /tmp/wheel
 RUN apt update && apt install -y procps curl apt-transport-https gnupg2 inotify-tools python3-docker python3-setuptools python3-pip && \
@@ -29,10 +29,10 @@ RUN apt update && apt install -y procps curl apt-transport-https gnupg2 inotify-
   apt update && apt install -y wazuh-agent=${AGENT_VERSION}  && \
   mkdir -p /usr/share/man/man1 && \
   apt install -y openjdk-11-jdk
-COPY *.py *.jinja2  /var/ossec/
+COPY *.py /var/ossec/
 WORKDIR /var/ossec/
 COPY --from=builder /tmp/wheel /tmp/wheel
-RUN pip3 install --break-system-packages --no-index /tmp/wheel/*.whl && \
+RUN pip3 install --no-index /tmp/wheel/*.whl && \
   chmod +x /var/ossec/deregister_agent.py && \
   chmod +x /var/ossec/register_agent.py && \
   apt-get clean autoclean && \
