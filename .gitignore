@@ -14,3 +14,4 @@ tmp/
 wazuh_indexer_ssl_certs
 snyk-code.sarif
 .dccache
+helm/values.dev.yaml

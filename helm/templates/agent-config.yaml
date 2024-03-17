@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-config
+data:
+  local_internal_options.jinja2: |-
+{{ .Values.local_internal_options | indent 4 }}
+
+  ossec.jinja2: |-
+{{ .Values.ossec | indent 4 }}

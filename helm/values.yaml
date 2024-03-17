@@ -2,106 +2,268 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
+
+
+wazuh:
+  JOIN_MANAGER_PROTOCOL: https
+  JOIN_MANAGER_HOST:
+  JOIN_MANAGER_API_PORT: "55000"
+  JOIN_MANAGER_PORT: "1514"
+  WAZUH_GROUPS: "kubernetes-node" # comma separated list
+
+  existingSecretName: wazuh-api-cred # needs to contain keys username and password
 
 image:
-  repository: nginx
-  pullPolicy: IfNotPresent
+  repository: ghcr.io/l3montree-dev/wazuh-agent-daemonset
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "v1.0.0"
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
 podAnnotations: {}
 podLabels: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+tolerations: {}
 
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+local_internal_options: |
+  wazuh_command.remote_commands=1
 
-service:
-  type: ClusterIP
-  port: 80
+ossec: |
+  <ossec_config>
+  <client>
+    <server>
+      <address>{{ join_manager_hostname }}</address>
+      <port>{{ join_manager_port | default('1514', true) }}</port>
+      <!--protocol>tcp</protocol-->
+    </server>
+    <config-profile>ubuntu, ubuntu20, ubuntu20.04, ubuntu16, ubuntu16.04, centos, windows</config-profile>
+    <notify_time>10</notify_time>
+    <time-reconnect>30</time-reconnect>
+    <auto_restart>yes</auto_restart>
+    <crypto_method>aes</crypto_method>
+  </client>
+  <auth>
+    <disabled>no</disabled>
+    <remote_enrollment>yes</remote_enrollment>
+    <port>{{ join_manager_port | default('1514', true) }}</port>
+    <use_source_ip>no</use_source_ip>
+    <force>
+        <enabled>yes</enabled>
+        <disconnected_time enabled="no">0</disconnected_time>
+        <after_registration_time>0</after_registration_time>
+        <key_mismatch>yes</key_mismatch>
+        <purge>yes</purge>
+    </force>
+  </auth>
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+  <client_buffer>
+    <!-- Agent buffer options -->
+    <disabled>no</disabled>
+    <queue_size>5000</queue_size>
+    <events_per_second>500</events_per_second>
+  </client_buffer>
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+  <!-- Policy monitoring -->
+  <rootcheck>
+    <disabled>no</disabled>
+    <check_files>yes</check_files>
+    <check_trojans>yes</check_trojans>
+    <check_dev>yes</check_dev>
+    <check_sys>yes</check_sys>
+    <check_pids>yes</check_pids>
+    <check_ports>yes</check_ports>
+    <check_if>yes</check_if>
 
-livenessProbe:
-  httpGet:
-    path: /
-    port: http
-readinessProbe:
-  httpGet:
-    path: /
-    port: http
+    <!-- Frequency that rootcheck is executed - every 12 hours -->
+    <frequency>43200</frequency>
 
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+    <rootkit_files>/var/ossec/etc/shared/rootkit_files.txt</rootkit_files>
+    <rootkit_trojans>/var/ossec/etc/shared/rootkit_trojans.txt</rootkit_trojans>
 
-# Additional volumes on the output Deployment definition.
-volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
+    <skip_nfs>yes</skip_nfs>
 
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
+  </rootcheck>
 
-nodeSelector: {}
+  <wodle name="docker-listener">
+    <disabled>no</disabled>
+    <attempts>10</attempts>
+    <run_on_start>yes</run_on_start>
+    <interval>5m</interval>
+  </wodle>
 
-tolerations: []
+  <wodle name="open-scap">
+    <disabled>no</disabled>
+    <timeout>1800</timeout>
+    <interval>1d</interval>
+    <scan-on-start>yes</scan-on-start>
 
-affinity: {}
+    <content type="xccdf" path="ssg-centos-7-ds.xml">
+      <profile>xccdf_org.ssgproject.content_profile_pci-dss</profile>
+      <profile>xccdf_org.ssgproject.content_profile_common</profile>
+    </content>
+  </wodle>
+
+  <wodle name="cis-cat">
+    <disabled>no</disabled>
+    <timeout>600</timeout>
+    <interval>15m</interval>
+    <scan-on-start>yes</scan-on-start>
+
+    <java_path>/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/bin</java_path>
+    <ciscat_path>wodles/ciscat</ciscat_path>
+
+    <content type="xccdf" path="benchmarks/CIS_Ubuntu_Linux_16.04_LTS_Benchmark_v1.0.0-xccdf.xml">
+      <profile>xccdf_org.cisecurity.benchmarks_profile_Level_2_-_Server</profile>
+    </content>
+
+  </wodle>
+
+  <!-- Virustotal inegration -->
+  <integration>
+    <name>virustotal</name>
+    <api_key>{{ virus_total_key }}</api_key>
+    <group>syscheck</group>
+    <alert_format>json</alert_format>
+  </integration>
+
+  <!-- System inventory -->
+  <wodle name="syscollector">
+    <disabled>no</disabled>
+    <interval>1h</interval>
+    <scan_on_start>yes</scan_on_start>
+    <hardware>yes</hardware>
+    <os>yes</os>
+    <network>yes</network>
+    <packages>yes</packages>
+    <ports all="no">yes</ports>
+    <processes>yes</processes>
+  </wodle>
+
+  <sca>
+    <enabled>yes</enabled>
+    <scan_on_start>yes</scan_on_start>
+    <interval>12h</interval>
+    <skip_nfs>yes</skip_nfs>
+  </sca>
+  <!-- File integrity monitoring -->
+  <syscheck>
+    <disabled>no</disabled>
+
+    <!-- Frequency that syscheck is executed default every 12 hours -->
+    <frequency>900</frequency>
+
+    <scan_on_start>yes</scan_on_start>
+
+    <!-- Directories to check  (perform all possible verifications) -->
+    <directories>/host/etc,/host/usr/bin,/host/usr/sbin</directories>
+    <directories>/host/bin,/host/sbin,/host/boot</directories>
+    <directories check_all="yes" realtime="yes">/host/home</directories>
+    <directories check_all="yes" realtime="yes">/host/etc</directories>
+
+    <!-- Files/directories to ignore -->
+    <ignore>/host/etc/mtab</ignore>
+    <ignore>/host/etc/hosts.deny</ignore>
+    <ignore>/host/etc/mail/statistics</ignore>
+    <ignore>/host/etc/random-seed</ignore>
+    <ignore>/host/etc/random.seed</ignore>
+    <ignore>/host/etc/adjtime</ignore>
+    <ignore>/host/etc/httpd/logs</ignore>
+    <ignore>/host/etc/utmpx</ignore>
+    <ignore>/host/etc/wtmpx</ignore>
+    <ignore>/host/etc/cups/certs</ignore>
+    <ignore>/host/etc/dumpdates</ignore>
+    <ignore>/host/etc/svc/volatile</ignore>
+
+    <!-- File types to ignore -->
+    <ignore type="sregex">.log$|.swp$</ignore>
+
+    <!-- Check the file, but never compute the diff -->
+    <nodiff>/etc/ssl/private.key</nodiff>
+
+    <skip_nfs>yes</skip_nfs>
+    <skip_dev>yes</skip_dev>
+    <skip_proc>yes</skip_proc>
+    <skip_sys>yes</skip_sys>
+
+    <!-- Nice value for Syscheck process -->
+    <process_priority>10</process_priority>
+
+    <!-- Maximum output throughput -->
+    <max_eps>100</max_eps>
+
+    <!-- Database synchronization settings -->
+    <synchronization>
+      <enabled>yes</enabled>
+      <interval>5m</interval>
+      <max_interval>1h</max_interval>
+      <max_eps>10</max_eps>
+    </synchronization>
+
+    <!-- Maximum number of files to be monitored -->
+    <file_limit>
+        <enabled>no</enabled>
+        <entries>1000000</entries>
+    </file_limit>
+  </syscheck>
+
+  <!-- Log analysis -->
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/host/var/log/auth.log</location>
+  </localfile>
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/host/var/log/syslog</location>
+  </localfile>
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/host/var/log/dpkg.log</location>
+  </localfile>
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/host/var/log/kern.log</location>
+  </localfile>
+
+  <localfile>
+    <log_format>command</log_format>
+    <command>df -P</command>
+    <frequency>360</frequency>
+  </localfile>
+
+  <localfile>
+    <log_format>full_command</log_format>
+    <command>netstat -tulpn | sed 's/\([[:alnum:]]\+\)\ \+[[:digit:]]\+\ \+[[:digit:]]\+\ \+\(.*\):\([[:digit:]]*\)\ \+\([0-9\.\:\*]\+\).\+\ \([[:digit:]]*\/[[:alnum:]\-]*\).*/\1 \2 == \3 == \4 \5/' | sort -k 4 -g | sed 's/ == \(.*\) ==/:\1/' | sed 1,2d</command>
+    <alias>netstat listening ports</alias>
+    <frequency>360</frequency>
+  </localfile>
+
+  <localfile>
+    <log_format>full_command</log_format>
+    <command>last -n 20</command>
+    <frequency>360</frequency>
+  </localfile>
+
+  <localfile>
+      <location>/var/log/*.log</location>
+      <log_format>syslog</log_format>
+  </localfile>
+
+  <!-- Active response -->
+  <active-response>
+    <disabled>no</disabled>
+    <ca_store>/var/ossec/etc/wpk_root.pem</ca_store>
+    <ca_verification>yes</ca_verification>
+  </active-response>
+
+  <!-- Choose between "plain", "json", or "plain,json" for the format of internal logs -->
+  <logging>
+    <log_format>plain</log_format>
+  </logging>
+
+  </ossec_config>

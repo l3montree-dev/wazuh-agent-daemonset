@@ -1,23 +1,40 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: wazuh-agent
-  namespace: wazuh
+  name: {{ include "wazuh-agent-daemonset.fullname" . }}
+  labels:
+    {{- include "wazuh-agent-daemonset.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: wazuh-agent
+      {{- include "wazuh-agent-daemonset.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
-        app: wazuh-agent
-      name: wazuh-agent
+        {{- include "wazuh-agent-daemonset.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       hostPID: true
       hostIPC: true
       containers:
-      - name: wazuh-agent
-        image: kennyopennix/wazuh-agent:latest
+      - name: {{ .Chart.Name }}
+        image:  "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         livenessProbe:
           httpGet:
             path: /healz
@@ -38,31 +55,31 @@ spec:
             memory: 512Mi
         env:
         - name: JOIN_MANAGER_MASTER_HOST
-          value: "wazuh.wazuh.svc.cluster.local"
+          value: {{ .Values.wazuh.JOIN_MANAGER_HOST }}
         - name: JOIN_MANAGER_WORKER_HOST
-          value: "wazuh-workers.wazuh.svc.cluster.local"
+          value: {{ .Values.wazuh.JOIN_MANAGER_HOST }}
         - name: JOIN_MANAGER_PROTOCOL
-          value: "https"
+          value: {{ .Values.wazuh.JOIN_MANAGER_PROTOCOL }}
         - name: NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
         - name: WAZUH_GROUPS
-          value: "demo"
+          value: {{ .Values.wazuh.WAZUH_GROUPS }}
         - name: JOIN_MANAGER_USER
           valueFrom:
-           secretKeyRef:
-             name: wazuh-api-cred
-             key: username
+            secretKeyRef:
+              name: {{ .Values.wazuh.existingSecretName }}
+              key: username
         - name: JOIN_MANAGER_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: wazuh-api-cred
+              name: {{ .Values.wazuh.existingSecretName }}
               key: password
         - name: JOIN_MANAGER_API_PORT
-          value: "55000"
+          value: {{ .Values.wazuh.JOIN_MANAGER_API_PORT | quote }}
         - name: JOIN_MANAGER_PORT
-          value: "1514"
+          value: {{ .Values.wazuh.JOIN_MANAGER_PORT | quote }}
         volumeMounts:
         - mountPath: /var/run
           name: var-run
@@ -77,10 +94,6 @@ spec:
         - mountPath: /host/etc
           name: etc
           readOnly: true
-        - mountPath: /var/run/docker.sock
-          name: docker-socket-mount
-        - mountPath: /host/var/run/docker.sock
-          name: docker-socket-mount
         - mountPath: /host/boot
           name: boot
           readOnly: true
@@ -93,10 +106,16 @@ spec:
         - mountPath: /host/var/log
           name: log
           readOnly: true
+        - mountPath: /var/ossec/ossec.jinja2
+          subPath: ossec.jinja2
+          name: agent-config
+        - mountPath: /var/ossec/local_internal_options.jinja2
+          subPath: "local_internal_options.jinja2"
+          name: agent-config
       volumes:
-      - name: docker-socket-mount
-        hostPath:
-          path: /var/run/docker.sock
+      - name: agent-config
+        configMap:
+          name: agent-config
       - name: var-run
         hostPath:
           path: /var/run
