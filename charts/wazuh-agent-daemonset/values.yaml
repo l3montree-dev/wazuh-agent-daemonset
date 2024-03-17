@@ -14,7 +14,7 @@ wazuh:
   existingSecretName: wazuh-api-cred # needs to contain keys username and password
 
 image:
-  repository: ghcr.io/l3montree-dev/wazuh-agent-daemonset
+  repository: ghcr.io/l3montree-dev/wazuh-agent-daemonset-oci
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "v1.0.0"
