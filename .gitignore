@@ -14,4 +14,4 @@ tmp/
 wazuh_indexer_ssl_certs
 snyk-code.sarif
 .dccache
-values.dev.yaml
+charts/wazuh-agent-daemonset/values.dev.yaml
