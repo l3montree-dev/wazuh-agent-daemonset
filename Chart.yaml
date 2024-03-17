@@ -1,6 +1,6 @@
 apiVersion: v2
 name: wazuh-agent-daemonset
-description: A Helm chart for Kubernetes
+description: This Helm chart deploys the Wazuh agent as a DaemonSet in a Kubernetes cluster, allowing for comprehensive security monitoring and threat detection across all cluster nodes.
 
 # A chart can be either an 'application' or a 'library' chart.
 #
