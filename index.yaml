@@ -1,0 +1,16 @@
+apiVersion: v1
+entries:
+  wazuh-agent-daemonset:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2024-03-17T10:41:59.900106692Z"
+    description: This Helm chart deploys the Wazuh agent as a DaemonSet in a Kubernetes
+      cluster, allowing for comprehensive security monitoring and threat detection
+      across all cluster nodes.
+    digest: 9ac597a1c17189d839357a6f3c506327de8281b8d4342ff5b78bf404d5f7a7bb
+    name: wazuh-agent-daemonset
+    type: application
+    urls:
+    - https://github.com/l3montree-dev/wazuh-agent-daemonset/releases/download/wazuh-agent-daemonset-1.0.0/wazuh-agent-daemonset-1.0.0.tgz
+    version: 1.0.0
+generated: "2024-03-17T10:41:59.900116239Z"
