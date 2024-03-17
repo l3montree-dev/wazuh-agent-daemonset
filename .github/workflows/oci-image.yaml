@@ -7,7 +7,7 @@ on: push
 
 # Environment variables used across multiple jobs
 env:
-  IMAGE_TAG: ghcr.io/${{ github.repository }}-oci:unstable
+  IMAGE_TAG: ghcr.io/${{ github.repository }}:unstable
 
 jobs:
   # Docker image build job
