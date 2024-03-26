@@ -1,6 +1,7 @@
 BSD 3-Clause License
 
 Copyright (c) 2021-2024, OpenNix
+Since 3eed0e16cbe2aa500de4a3575e0b47456621cb99: Copyright (c) 2024, L3montree UG (haftungsbeschränkt)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
